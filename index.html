@@ -113,6 +113,7 @@
     align-items: center; gap: 80px;
     position: relative; overflow: hidden;
   }
+  .hero > div { min-width: 0; }
   .hero::before {
     content: ''; position: absolute; right: -100px; top: 50%; transform: translateY(-50%);
     width: 600px; height: 600px; border-radius: 50%;
@@ -149,6 +150,7 @@
     border-radius: var(--radius); padding: 20px 22px;
     transition: border-color 0.3s;
   }
+  .stat-box { min-width: 0; }
   .stat-box:hover { border-color: var(--border-coral); }
   .stat-num {
     display: block; font-size: 2rem; font-weight: 700;
