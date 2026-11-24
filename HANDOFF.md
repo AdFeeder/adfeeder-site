@@ -1,156 +1,180 @@
 # AdFeeder Website — Handoff Document
 
-**Last updated:** [Insert Date]
-**Prepared for:** Blanco Digital Ltd (trading as AdFeeder)
-**Site:** https://webdev.adfeeder.com (staging/dev)
+**Last updated:** 24 November 2026
+**Owner:** Dave (Blanco Digital Ltd, trading as AdFeeder)
+**Live site:** https://adfeeder.com (also `www.adfeeder.com` and `webdev.adfeeder.com`)
+**Repo:** https://github.com/davedibbleblanco/adfeeder-site (branch `main`)
+
+This file tells the next person (or Claude session) what the site is, how it gets
+live, what state it's in, and what's left to do. Read sections 1–3 before you
+change anything.
 
 ---
 
-## 1. Overview
+## 1. What it is
 
-This document describes the current setup for the AdFeeder marketing website: where the code lives, how it gets deployed, and how to make changes going forward.
+The AdFeeder marketing website: a set of static HTML pages selling AdFeeder's ad
+automation to car dealers. It's plain HTML, CSS and a little JS, with one PHP file for
+the contact form. There's no framework, no build step and no package manager.
 
-The site is a single-page marketing site for AdFeeder (digital marketing automation for automotive dealers), built in plain HTML/CSS/JS with a dark navy and coral design and Poppins font. It currently sits on a **staging subdomain** (`webdev.adfeeder.com`) separate from the live production domain (`adfeeder.com`).
+Look and feel: dark navy background, coral accents, Poppins font. The design
+tokens are CSS custom properties (`--navy`, `--coral`, `--coral-dim`, `--border-coral`,
+`--radius-lg`, …) defined at the top of each page's `<style>` block.
+
+**Every page is self-contained.** Each `.html` file carries its own full copy of the
+`<style>` block, nav and footer. There are no shared CSS, JS or include files. So a
+change to the nav, the footer or a shared style has to be made **in every page**.
+Search and replace across `*.html` and check you hit all 12 or 13 files.
 
 ---
 
-## 2. Architecture
+## 2. Pages
 
-```
-┌─────────────────┐        push        ┌──────────────────────┐
-│   Local editing  │ ─────────────────▶ │   GitHub repository   │
-│  (Claude / dev)  │                    │  davedibbleblanco/    │
-└─────────────────┘                    │  adfeeder-site        │
-                                        └──────────┬────────────┘
-                                                   │ cron pull
-                                                   │ every 5 min
-                                                   ▼
-                                        ┌──────────────────────┐
-                                        │   GCP VM: topx-picker │
-                                        │  35.242.151.115       │
-                                        │  /var/www/webdev.     │
-                                        │  adfeeder.com         │
-                                        └──────────┬────────────┘
-                                                   │ nginx + SSL
-                                                   ▼
-                                    https://webdev.adfeeder.com
-```
-
-### Key components
-
-| Component | Detail |
+| File | Purpose |
 |---|---|
-| **GitHub repo** | [`davedibbleblanco/adfeeder-site`](https://github.com/davedibbleblanco/adfeeder-site) — **public** repo (deliberately, so the VM can pull with no stored credentials) |
-| **Hosting VM** | Google Cloud Platform VM named `topx-picker`, IP `35.242.151.115`. This VM also hosts other unrelated apps (`fbo-offers`, `onboarding-app`, `topx-picker`) — the AdFeeder site is one of several nginx sites configured on it |
-| **Web root** | `/var/www/webdev.adfeeder.com` on the VM |
-| **Web server** | nginx, config at `/etc/nginx/sites-available/webdev.adfeeder.com` (symlinked into `sites-enabled`) |
-| **SSL** | Free Let's Encrypt certificate via `certbot`, auto-renews via systemd timer — no manual action needed |
-| **DNS** | `webdev.adfeeder.com` — A record pointing to `35.242.151.115`, managed wherever the main `adfeeder.com` DNS is hosted |
+| `index.html` | Home page: hero, stats, pillars, products |
+| `vehicle-ads.html` | Vehicle Ads product page |
+| `used-cars.html` | Used-car dealers landing page |
+| `new-cars.html` | New-car dealers landing page |
+| `commercial-vehicles.html` | Commercial vehicle dealers landing page |
+| `different.html` | "What makes us different" (large file, about 650 KB, because it has embedded images) |
+| `glossary.html` | Public PPC glossary (no login), added 25 Sep 2026 |
+| `book-a-demo.html` | Demo booking page |
+| `contact.html` | Contact form. Posts JSON to `contact.php` |
+| `contact.php` | Form handler. Validates, uses a honeypot (`botcheck`), and emails **support@adfeeder.com** via PHP `mail()`. CORS allows only adfeeder.com, www and webdev |
+| `privacy.html`, `cookies.html`, `terms.html` | Legal pages (see TODOs) |
+| `book-a-demo-bonus.html` | **Work in progress, not committed and not live** (see section 5) |
 
 ---
 
-## 3. Deployment Workflow
+## 3. Hosting and deploy
 
-1. Changes are made to `index.html` (or other site files) and committed to git.
-2. Changes are pushed to `github.com/davedibbleblanco/adfeeder-site` on branch `main`.
-3. A **cron job on the VM** (running as root) pulls the latest code automatically:
-   ```
-   */5 * * * * cd /var/www/webdev.adfeeder.com && git pull origin main >> /var/log/webdev-pull.log 2>&1
-   ```
-4. Within ~5 minutes, changes appear live at `https://webdev.adfeeder.com` — **no manual deploy step required**.
+```
+local edit ──git push──▶ GitHub: davedibbleblanco/adfeeder-site (main, PUBLIC repo)
+                                   │  root cron on the VM: git pull every 5 min
+                                   ▼
+                GCP VM "topx-picker" (35.242.151.115), nginx 1.24 on Ubuntu
+                web root: /var/www/webdev.adfeeder.com
+                                   │
+                                   ▼
+          https://adfeeder.com · https://www.adfeeder.com · https://webdev.adfeeder.com
+```
 
-To check the pull log for errors:
+- **To deploy, commit and push to `main`.** Changes go live within about 5 minutes. The
+  cron line (as root) is:
+  `*/5 * * * * cd /var/www/webdev.adfeeder.com && git pull origin main >> /var/log/webdev-pull.log 2>&1`
+- The repo is **public on purpose** so the VM can pull without stored credentials.
+  **Never commit secrets here.** Don't put a password, API key or SMTP credentials
+  in `contact.php`.
+- On 24 Nov 2026, adfeeder.com, www and webdev all served identical content, and that
+  content matched this repo exactly (the only difference was line endings). All three
+  hostnames are on the same VM.
+- **Unknown paths on adfeeder.com are 301-redirected to blog.adfeeder.com.** For
+  example, `/blog/` goes to `https://blog.adfeeder.com/blog/`. This is presumably there to
+  keep old WordPress URLs working. It also means a new page that hasn't been pushed yet
+  shows up as a redirect to the blog, not a 404.
+- Same VM, other sites: the AdFeeder apps (apps, notes, topx, timetracker, …) and
+  the WordPress blog.
+
+### ⚠️ Don't edit files directly on the server
+In September 2026 the live web root was found to have months of direct edits that were
+never committed. Whole pages existed only on the server. They were brought back into the
+repo in commit `4a22f7a`. The cron pull doesn't warn you about local edits on the
+server, so they drift silently. **Always change the repo and push.** If you must hotfix
+on the server, commit the same change back to the repo straight away. Before relying on
+the repo, you can check for drift:
 ```bash
-cat /var/log/webdev-pull.log
+cd /var/www/webdev.adfeeder.com && sudo git status
 ```
 
-### Making changes manually (without Claude)
-If you ever need to push changes yourself from your own machine:
-```bash
-git clone https://github.com/davedibbleblanco/adfeeder-site.git
-# edit files
-git add .
-git commit -m "your message"
-git push origin main
-```
-No token is needed to push since the repo is public and you're the owner — GitHub will prompt for your own credentials/SSH key.
+### Server access
+- SSH: Google Cloud Console → Compute Engine → VM instances → `topx-picker` → **SSH**
+  (in the browser, no setup needed). Or from a machine with the gcloud CLI, logged in as
+  dave@blancodigital.co.uk (GCP project `adfeeder-uploaders`), use `gcloud compute ssh topx-picker`.
+- Pushing to GitHub: as the `davedibbleblanco` account. If you make a personal access
+  token for a session, revoke it afterwards at https://github.com/settings/tokens.
+
+### Not yet confirmed (check on the server)
+- Which nginx config serves `adfeeder.com` and `www`. It may be the
+  `webdev.adfeeder.com` config with extra `server_name`s, or a separate config pointing
+  at the same root. Run `grep -rn "adfeeder.com" /etc/nginx/sites-enabled/`.
+- Where the fallback redirect to blog.adfeeder.com is set (probably a
+  `try_files … @blog` or `error_page 404` rule in that config).
+- Whether PHP `mail()` actually delivers on this VM (is a local MTA or relay set up?). Send a test enquiry from
+  `contact.html` and confirm it reaches support@adfeeder.com. If not, the form looks
+  like it worked but nothing arrives. A 500 response from `contact.php` is
+  the clue.
 
 ---
 
-## 4. File Structure
+## 4. The blog (separate system)
 
-```
-adfeeder-site/
-├── index.html       # Main landing page (nav, hero, pillars, products, footer, JS)
-├── privacy.html      # Privacy Policy (auto-generated to match site styling)
-├── cookies.html      # Cookie Policy (auto-generated to match site styling)
-└── terms.html        # Agency Terms of Service (auto-generated to match site styling)
-```
+`blog.adfeeder.com` is a **WordPress** install on the same VM, at
+`/var/www/blog.adfeeder.com`. It isn't in this repo. Its look comes from a child
+theme in a separate repo, https://github.com/davedibbleblanco/generatepress-child
+(local folder `source/repos/generatepress-child`, with its own HANDOFF.md). That theme
+copies this site's colours and fonts, so a brand change here should be repeated there.
 
-All four pages share the same `<style>` block, nav, and footer, copied from `index.html` so the site look stays consistent. If `index.html`'s nav/footer/branding changes, the legal pages should be regenerated or manually updated to match.
+The site nav and footer link to `https://blog.adfeeder.com`.
 
----
-
-## 5. Outstanding Items / Known TODOs
-
-- ⚠️ **Legal pages need review**: `privacy.html`, `cookies.html`, and `terms.html` were drafted as generic UK GDPR/PECR boilerplate. They contain placeholder text (e.g. `[Insert Date]`, generic payment terms) and **have not been reviewed by a solicitor**. Do not treat as final/compliant until reviewed.
-- The site currently only has the four pages listed above — no blog, no additional inner pages yet.
-- Nav dropdown links (Used Cars, New Cars, Commercial Vehicles, Support, Blog, About) are currently placeholder `#` links and don't go anywhere yet.
-- Social icons in the footer (Facebook, X, Instagram, YouTube) are placeholder `#` links.
-- This is a **staging** site (`webdev.adfeeder.com`). No process is currently set up for promoting this to the live `adfeeder.com` domain — that would need to be planned separately (e.g. swapping DNS, or copying files into the production web root once approved).
+Known WordPress issue (Nov 2026): the admin asked for FTP credentials when updating plugins.
+The fix is to have the files owned by the PHP user (`sudo chown -R www-data:www-data
+/var/www/blog.adfeeder.com`) and add `define('FS_METHOD', 'direct');` to its
+`wp-config.php`. Check whether that's been done before assuming it's fixed.
 
 ---
 
-## 6. Access & Credentials
+## 5. Work in progress and TODOs
 
-| What | Where |
+**In progress: `book-a-demo-bonus.html`** (created 6 Nov 2026, untracked, not pushed)
+- A copy of `book-a-demo.html` reworded as a "you found the present, book a demo to
+  claim your free bonus" landing page, with an offer panel. It's marked
+  `noindex, nofollow`, so it's meant to be reached only from a link you hand out (an
+  email, a QR code, a campaign), not from the site nav.
+- **Blocked on copy:** the offer panel still says
+  `[OFFER HEADLINE — TO BE CONFIRMED]` and
+  `[OFFER DETAIL, CONDITIONS AND DEADLINE — TO BE CONFIRMED]`. Get the real offer,
+  headline, terms and deadline from Dave before shipping.
+- To ship: fill in the placeholders, check it on mobile, then commit and push. It's live at
+  `https://adfeeder.com/book-a-demo-bonus.html` about 5 minutes later.
+- Think about whether demo requests from this page need tagging so sales know the person
+  is claiming the bonus. At the moment it books exactly like the normal demo page.
+
+**Open items**
+- ⚠️ **Legal pages not reviewed by a solicitor.** `privacy.html`, `cookies.html` and
+  `terms.html` started as generic UK GDPR/PECR boilerplate. Treat them as drafts
+  until they're reviewed.
+- **No analytics tag found** on the live home page (no GA4 or GTM). If tracking is wanted,
+  it must be added to every page (see section 1). The cookie policy and a consent banner may
+  then need updating.
+- Shared markup is duplicated across every page. If the site grows, consider moving the
+  CSS into one `styles.css` and loading the nav and footer from one place. This isn't
+  urgent, but it's the main source of slow, error-prone edits.
+
+---
+
+## 6. Recent history
+
+| Date | Change |
 |---|---|
-| GitHub repo | https://github.com/davedibbleblanco/adfeeder-site (public, owned by `davedibbleblanco`) |
-| VM SSH access | Via Google Cloud Console → Compute Engine → VM instances → `topx-picker` → SSH button (browser-based, no local setup needed) |
-| GitHub Personal Access Token | **Not stored anywhere** — tokens were generated per-session for pushing and are not persisted in git config or on the VM (repo is public, so the VM doesn't need one to pull) |
+| 23 Jul 2026 | Initial upload, legal pages, SVG pillar icons |
+| 3 Sep 2026 | `4a22f7a` repo re-synced with the live server (product, landing, contact and demo pages); `9950032` mobile CSS grid overflow fix on hero and stat boxes |
+| 25 Sep 2026 | `a6f23cb` public PPC glossary page |
+| 6 Nov 2026 | `book-a-demo-bonus.html` drafted (uncommitted) |
 
-**Note on tokens:** if a GitHub PAT is generated for future work, treat it as sensitive — revoke it via https://github.com/settings/tokens once no longer needed, and avoid pasting it anywhere it could be logged or persisted.
-
----
-
-## 7. Useful Commands Reference
+## 7. Handy commands (on the VM)
 
 ```bash
-# SSH in via Cloud Console browser terminal — no local install needed
-
-# Check nginx status
-sudo systemctl status nginx
-
-# Check nginx config for the AdFeeder site
-sudo cat /etc/nginx/sites-available/webdev.adfeeder.com
-
-# Test nginx config after any changes
-sudo nginx -t
-
-# Reload nginx after config changes
-sudo systemctl reload nginx
-
-# Check the auto-pull cron log
-cat /var/log/webdev-pull.log
-
-# View current cron jobs
-sudo crontab -l
-
-# Manually force a pull (bypass the 5-min wait)
-cd /var/www/webdev.adfeeder.com && sudo git pull origin main
-
-# Renew SSL manually (shouldn't be needed — auto-renews)
-sudo certbot renew
+cat /var/log/webdev-pull.log                        # auto-pull log
+sudo crontab -l                                     # see the pull job
+cd /var/www/webdev.adfeeder.com && sudo git pull origin main   # deploy now
+sudo nginx -t && sudo systemctl reload nginx        # after nginx config edits
+sudo certbot renew --dry-run                        # SSL auto-renews; this just checks
 ```
 
----
+## 8. Company details (used in footer and legal pages)
 
-## 8. Company Reference Details
-
-- **Legal name:** Blanco Digital Ltd
-- **Trading as:** AdFeeder
-- **Company number:** 09675276 (England & Wales)
-- **VAT number:** 219 6788 61
-- **Registered office:** 31 The Balcony, Castle Arcade Quarter, Cardiff, CF10 1BY, United Kingdom
-- **Phone:** 02922 749355
-- **Email:** contact@adfeeder.com
+- **Legal name:** Blanco Digital Ltd, trading as AdFeeder
+- **Company number:** 09675276 (England & Wales) · **VAT:** 219 6788 61
+- **Registered office:** 31 The Balcony, Castle Arcade Quarter, Cardiff, CF10 1BY
+- **Phone:** 02922 749355 · **Email:** contact@adfeeder.com (form enquiries go to support@adfeeder.com)
