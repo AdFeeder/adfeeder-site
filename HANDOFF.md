@@ -43,7 +43,7 @@ Search and replace across `*.html` and check you hit all 12 or 13 files.
 | `contact.html` | Contact form. Posts JSON to `contact.php` |
 | `contact.php` | Form handler. Validates, uses a honeypot (`botcheck`), and emails **support@adfeeder.com** via PHP `mail()`. CORS allows only adfeeder.com, www and webdev |
 | `privacy.html`, `cookies.html`, `terms.html` | Legal pages (see TODOs) |
-| `book-a-demo-bonus.html` | **Work in progress, not committed and not live** (see section 5) |
+| `book-a-demo-bonus.html` | January deck offer page, 20% for life of contract (see section 5) |
 
 ---
 
@@ -126,19 +126,13 @@ The fix is to have the files owned by the PHP user (`sudo chown -R www-data:www-
 
 ## 5. Work in progress and TODOs
 
-**In progress: `book-a-demo-bonus.html`** (created 6 Nov 2026, untracked, not pushed)
-- A copy of `book-a-demo.html` reworded as a "you found the present, book a demo to
-  claim your free bonus" landing page, with an offer panel. It's marked
-  `noindex, nofollow`, so it's meant to be reached only from a link you hand out (an
-  email, a QR code, a campaign), not from the site nav.
-- **Blocked on copy:** the offer panel still says
-  `[OFFER HEADLINE — TO BE CONFIRMED]` and
-  `[OFFER DETAIL, CONDITIONS AND DEADLINE — TO BE CONFIRMED]`. Get the real offer,
-  headline, terms and deadline from Dave before shipping.
-- To ship: fill in the placeholders, check it on mobile, then commit and push. It's live at
-  `https://adfeeder.com/book-a-demo-bonus.html` about 5 minutes later.
-- Think about whether demo requests from this page need tagging so sales know the person
-  is claiming the bonus. At the moment it books exactly like the normal demo page.
+**Live: `book-a-demo-bonus.html`** (shipped 25 Nov 2026)
+- The page the Christmas present icon on the last slides of the January offer deck links to. It is a copy of
+  `book-a-demo.html` with an offer panel: sign up before the end of December 2026 for 20% off for the life of the
+  contract, plus free setup for sign-ups before 25 December. It is `noindex, nofollow` and not in the site nav.
+- It books exactly like the normal demo page, so a booking from it is not tagged. Add tagging if sales need to know who is
+  claiming the offer.
+- After 31 December 2026 the offer has ended: update or retire the page and the deck link.
 
 **Open items**
 - ⚠️ **Legal pages not reviewed by a solicitor.** `privacy.html`, `cookies.html` and
@@ -161,6 +155,7 @@ The fix is to have the files owned by the PHP user (`sudo chown -R www-data:www-
 | 3 Sep 2026 | `4a22f7a` repo re-synced with the live server (product, landing, contact and demo pages); `9950032` mobile CSS grid overflow fix on hero and stat boxes |
 | 25 Sep 2026 | `a6f23cb` public PPC glossary page |
 | 6 Nov 2026 | `book-a-demo-bonus.html` drafted (uncommitted) |
+| 25 Nov 2026 | `book-a-demo-bonus.html` finished (20% for life offer) and published |
 
 ## 7. Handy commands (on the VM)
 
